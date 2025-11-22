@@ -1,99 +1,196 @@
+const express = require("express");
+const cors = require("cors");
+const { initializeDatabase } = require("./db/db.connect");
+const Event = require("./models/meetup.models");
 
-const {initializeDatabase} = require("./db/db.connect")
-const express = require("express")
 const app = express();
 
-const Meetup = require("./models/meetup.models")
-
+// Middlewares
 app.use(express.json());
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+    optionsSuccessStatus: 200,
+  })
+);
 
+// Connect to MongoDB
 initializeDatabase();
 
-const cors = require("cors");
-const corsOptions = {
-  origin: "*",
-  credentials: true,
-  optionSuccessStatus: 200,
-};
+// ----------------------
+// Helper functions
+// ----------------------
 
-app.use(cors(corsOptions));
-
-// const newEvent = {
-//   "eventTitle": "Marketing Seminar",
-//   "host": "Marketing Experts",
-//   "eventImageUrl": "https://img.freepik.com/free-photo/people-meeting-showing-presentation_23-2148817060.jpg",
-//   "startDateTime": "2023-08-15T10:00:00.000Z",
-//   "endDateTime": "2023-08-15T12:00:00.000Z",
-//   "mode": "Offline",
-//   "address": "Marketing City, 789 Marketing Avenue, City",
-//   "price": 3000,
-//   "speakers": [
-//     {
-//       "speakerName": "Sarah Johnson",
-//       "speakerDesignation": "Marketing Manager",
-//       "speakerImageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlVparuZ4feRMJDAKgjimGIgPRBCI5jgvPrQ&s"
-//     },
-//     {
-//       "speakerName": "Michael Brown",
-//       "speakerDesignation": "SEO Specialist",
-//       "speakerImageUrl": "https://plus.unsplash.com/premium_photo-1683121523671-9617aba661d7?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-//     }
-//   ],
-//   "eventDetails": "Stay ahead of the game in the dynamic field of digital marketing by attending the Marketing Seminar organized by Marketing Experts. This offline seminar will be held on August 15th from 10:00 AM to 12:00 PM at Marketing City, situated at 789 Marketing Avenue, City. Join industry leaders Sarah Johnson, Marketing Manager, and Michael Brown, SEO Specialist, as they delve into the latest trends and strategies in digital marketing. The seminar is open to individuals aged 18 and above and requires a ticket priced at ₹3,000. The dress code for the event is smart casual.",
-//   "dressCode": "Smart casual",
-//   "ageRestrictions": 18,
-//   "eventTags": ["marketing", "digital"]
-// }
-
-
-async function createEvent(newEvent){
-    try {
-        const event = new Meetup(newEvent);
-        const saveData = await event.save();
-        return saveData;
-        
-    } catch (error) {
-        console.log(error);
-    }
-}
-app.post("/meetup", async(req, res) => {
-    try {
-        const data = await createEvent(req.body)
-        res.status(200).json({message: "Data Added Successfully.", Event : data})
-    } catch (error) {
-        res.status(500).json({error: "Unable to add data." })
-    }
-})
-async function getAllEvents(){
-    try {
-        const data = await Meetup.find();
-        
-            return data;
-        
-    } catch (error) {
-        throw error;
-         
-    }
+// Create a new event
+async function createEvent(eventData) {
+  const event = new Event(eventData);
+  const savedEvent = await event.save();
+  return savedEvent;
 }
 
-app.get("/meetup", async (req, res) => {
-    try {
-        const data = await getAllEvents();
-        if(data.listen != 0){
-            res.status(200).json(data)
-        } else {
-            res.status(404).json({error: "Unable to fetch Events."})
-        }
-    } catch (error) {
-        res.status(500).json({error: "Unable to fetch data."})
+// Get all events, with optional search and tag filter
+async function getEvents({ search, tag }) {
+  const query = {};
+
+  if (search) {
+    const regex = new RegExp(search, "i"); // case-insensitive
+    query.$or = [
+      { title: regex },
+      { description: regex },
+      { location: regex },
+    ];
+  }
+
+  if (tag) {
+    // tags is an array, this will match events that contain this tag
+    query.tags = tag;
+  }
+
+  const events = await Event.find(query).sort({ createdAt: -1 });
+  return events;
+}
+
+// Get a single event by id
+async function getEventById(id) {
+  const event = await Event.findById(id);
+  return event;
+}
+
+// Add attendee to an event
+async function addAttendee(id, attendee) {
+  const event = await Event.findById(id);
+  if (!event) {
+    return null;
+  }
+
+  if (!attendee) {
+    throw new Error("Attendee name or email is required");
+  }
+
+  // Avoid duplicates
+  if (!event.attendees.includes(attendee)) {
+    event.attendees.push(attendee);
+    await event.save();
+  }
+
+  return event;
+}
+
+// Delete an event
+async function deleteEvent(id) {
+  const deletedEvent = await Event.findByIdAndDelete(id);
+  return deletedEvent;
+}
+
+// ----------------------
+// Routes
+// ----------------------
+
+// Simple health check
+app.get("/", (req, res) => {
+  res.send("Event Management API is running");
+});
+
+// POST /events - create a new event
+app.post("/events", async (req, res) => {
+  try {
+    const { title, description, date, location, tags, imageUrl } = req.body;
+
+    if (!title || !description || !date || !location) {
+      return res
+        .status(400)
+        .json({ error: "title, description, date and location are required" });
     }
-})
+
+    const eventData = {
+      title,
+      description,
+      date,
+      location,
+      imageUrl: imageUrl || "",
+      tags: Array.isArray(tags) ? tags : [],
+      attendees: [], // start empty
+    };
+
+    const savedEvent = await createEvent(eventData);
+    res.status(201).json(savedEvent);
+  } catch (error) {
+    console.error("Error creating event:", error);
+    res.status(500).json({ error: "Failed to create event" });
+  }
+});
+
+// GET /events - list all events (with optional search and tag)
+app.get("/events", async (req, res) => {
+  try {
+    const { search, tag } = req.query;
+    const events = await getEvents({ search, tag });
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    res.status(500).json({ error: "Failed to fetch events" });
+  }
+});
+
+// GET /events/:id - get single event details
+app.get("/events/:id", async (req, res) => {
+  try {
+    const event = await getEventById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+    res.status(200).json(event);
+  } catch (error) {
+    console.error("Error fetching event:", error);
+    res.status(500).json({ error: "Failed to fetch event" });
+  }
+});
+
+// PATCH /events/:id/rsvp - add an attendee
+app.patch("/events/:id/rsvp", async (req, res) => {
+  try {
+    const { attendee } = req.body;
+
+    if (!attendee) {
+      return res
+        .status(400)
+        .json({ error: "Attendee name or email is required" });
+    }
+
+    const updatedEvent = await addAttendee(req.params.id, attendee);
+
+    if (!updatedEvent) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    res.status(200).json(updatedEvent);
+  } catch (error) {
+    console.error("Error adding attendee:", error);
+    res.status(500).json({ error: "Failed to add attendee" });
+  }
+});
 
 
+// DELETE /events/:id - delete an event
+app.delete("/events/:id", async (req, res) => {
+  try {
+    const deletedEvent = await deleteEvent(req.params.id);
 
+    if (!deletedEvent) {
+      return res.status(404).json({ error: "Event not found" });
+    }
 
-const PORT = 3000;
+    res.status(200).json({ message: "Event deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    res.status(500).json({ error: "Failed to delete event" });
+  }
+});
+
+// ----------------------
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log("Server running on port 3000.");
-    
-} )
+  console.log("Server running on port", PORT);
+});
+

@@ -1,56 +1,47 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 
-const MeetupSchema = new mongoose.Schema({
-    eventTitle: {
-        type: String,
-        required: true
+const EventSchema = new mongoose.Schema(
+  {
+    // Basic required fields as per assignment
+    title: {
+      type: String,
+      required: true,
     },
-    host: {
-        type: String,
-        required: true
+    description: {
+      type: String,
+      required: true,
     },
-    eventImageUrl: {
-        type: String,
-        required: true
+    date: {
+      type: Date,
+      required: true,
     },
-    startDateTime: { type: Date, required: true },
-    endDateTime: { type: Date, required: true },
-    address: {
-        type: String,
-        required: true
+    location: {
+      type: String,
+      required: true,
     },
-    price: {
-        type: Number,
-        required: true
-    },
-    speakers: [{
-        speakerName: {
-            type: String,
-            required: true
-        },
-        speakerDesignation: {
-            type: String,
-            required: true
-        },
-        speakerImageUrl: {
-            type: String,
-            required: true
-        }
-    }],
-    mode: {
-        type: String,
-        enum: ["Online", "Offline", "Both"],
-        required: true
-    },
-    eventDetails: {
-        type: String,
-        required: true
-    },
-    dressCode: String,
-    ageRestrictions: Number,
-    eventTags: [{type:String}]
-}, {timestamps: true})
 
-const MeetUp = mongoose.model("Meetup", MeetupSchema);
+    // Optional image just for UI
+    imageUrl: {
+      type: String,
+    },
 
-module.exports = MeetUp;
+    // Tags and attendees
+    tags: [
+      {
+        type: String,
+      },
+    ],
+    attendees: [
+      {
+        type: String, // simple: store attendee name or email as string
+      },
+    ],
+  },
+  {
+    timestamps: true, // adds createdAt and updatedAt automatically
+  }
+);
+
+const Event = mongoose.model("Event", EventSchema);
+
+module.exports = Event;
