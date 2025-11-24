@@ -48,14 +48,10 @@ MONGO_URI=your_mongo_connection_string
 ### 1. Install dependencies
 npm install
 
-shell
-Copy code
+
 
 ### 2. Start the server
 npm start
-
-arduino
-Copy code
 
 Server will run at:
 http://localhost:5000
