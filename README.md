@@ -34,18 +34,12 @@ backend/
 │── index.js
 │── package.json
 
-yaml
-Copy code
-
 ---
 
 ## ⚙️ Environment Variables
 Create a `.env` file in the root and add:
 
 MONGO_URI=your_mongo_connection_string
-
-yaml
-Copy code
 
 ---
 
@@ -66,9 +60,6 @@ Copy code
 Server will run at:
 http://localhost:5000
 
-yaml
-Copy code
-
 ---
 
 ## 🌐 Deployment (Vercel)
@@ -83,26 +74,15 @@ The backend is deployed at:
 ### ➤ Get all events
 GET /events
 
-shell
-Copy code
-
 ### ➤ Create event
 POST /events
 
-shell
-Copy code
 
 ### ➤ Update event
 PATCH /events/:id
 
-shell
-Copy code
-
 ### ➤ Delete event
 DELETE /events/:id
-
-yaml
-Copy code
 
 ---
 
@@ -115,8 +95,6 @@ Copy code
 "image": "https://example.com/image.jpg"
 }
 
-yaml
-Copy code
 
 ---
 
